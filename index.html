@@ -281,6 +281,7 @@ tr.dragging{opacity:0.4}
 }
 @media screen{
   body{zoom:1.25}
+  .tax-print{display:none}
 }
 @media print{
   body{zoom:1;background:#fff;font-size:9px}
@@ -292,6 +293,8 @@ tr.dragging{opacity:0.4}
   #sign-sel{display:none!important}
   .drag-handle{display:none!important}
   th:first-child[style*="width:18px"]{display:none!important}
+  .lt td select{display:none!important}
+  .tax-print{display:inline!important}
   #sign-name,#sign-role{display:block!important}
   .pbm-row{display:none!important}
   @page{margin:10mm 12mm;size:A4;marks:none}
@@ -514,7 +517,12 @@ let lid=0;
 const TAX_OPTS=[['0','0%'],['7','7%'],['14','14%']];
 
 function taxSel(v){
-  return '<select onchange="calcTot()">'+TAX_OPTS.map(o=>`<option value="${o[0]}"${o[0]===String(v)?' selected':''}>${o[1]}</option>`).join('')+'</select>';
+  return '<select onchange="updateTaxPrint(this);calcTot()">'+TAX_OPTS.map(o=>`<option value="${o[0]}"${o[0]===String(v)?' selected':''}>${o[1]}</option>`).join('')+'</select>';
+}
+
+function updateTaxPrint(sel){
+  const span = sel.parentNode.querySelector('.tax-print');
+  if(span) span.textContent = sel.value=='6.5'?'6,5%':sel.value+'%';
 }
 
 function renderBanking(){
@@ -617,7 +625,7 @@ function addLine(d){
     <td class="qt"><input type="text" class="tc" value="${qtyVal}" placeholder="1" oninput="fmtField(this)" onblur="fmtBlur(this,true)" data-raw="${+d.qty||1}"></td>
     <td class="dy"><input type="text" class="tc" value="${daysVal}" placeholder="1" oninput="fmtField(this)" onblur="fmtBlur(this,true)" data-raw="${+d.days||1}"></td>
     <td class="vu"><input type="text" class="tr" value="${unitVal}" placeholder="0,00" oninput="fmtField(this)" onblur="fmtBlur(this,false)" data-raw="${+d.unit||0}"></td>
-    <td class="tx tc">${taxSel(d.tax)}</td>
+    <td class="tx tc"><span class="tax-print">${d.tax=='6.5'?'6,5':d.tax}%</span>${taxSel(d.tax)}</td>
     <td class="dc"><input type="text" class="tr" value="${discVal}" placeholder="" oninput="fmtField(this)" onblur="fmtBlur(this,false)" data-raw="${+d.disc||0}"></td>
     <td class="to tr" id="lt${id}">0,00</td>
     <td class="dl"><button class="del-btn" onclick="delLine(${id})">×</button></td>`;
