@@ -167,6 +167,17 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
 .gt-val{font-size:18px;font-weight:700;color:var(--black);white-space:nowrap}
 .gt-cur{font-size:9px;color:var(--bronze);font-weight:600;margin-top:1px;text-align:right}
 
+/* DRAG & DROP */
+.drag-handle{
+  width:18px;text-align:center;cursor:grab;color:var(--gl);
+  font-size:12px;padding:0 2px;user-select:none;
+  border-bottom:1px solid var(--gl);vertical-align:middle;
+}
+.drag-handle:hover{color:var(--bronze)}
+.drag-handle:active{cursor:grabbing}
+tr.drag-over td{border-top:2px solid var(--bronze) !important}
+tr.dragging{opacity:0.4}
+
 /* TEXTAREA AUTO-RESIZE */
 .ta{border:none;outline:none;font-family:'Montserrat',sans-serif;font-size:10px;
   color:var(--black);background:transparent;width:100%;padding:1px 3px;
@@ -279,6 +290,8 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
   .card2{page-break-before:always;margin-top:0;page-break-inside:avoid}
   input,select{border:none!important;background:transparent!important}
   #sign-sel{display:none!important}
+  .drag-handle{display:none!important}
+  th:first-child[style*="width:18px"]{display:none!important}
   #sign-name,#sign-role{display:block!important}
   .pbm-row{display:none!important}
   @page{margin:10mm 12mm;size:A4;marks:none}
@@ -339,6 +352,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
     <table class="lt">
       <thead>
         <tr>
+          <th class="n" style="width:18px"></th>
           <th class="n">#</th>
           <th class="tl ds">Descrição</th>
           <th class="qt">Quant.</th>
@@ -351,7 +365,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
         </tr>
       </thead>
       <tbody id="lbody"></tbody>
-      <tfoot><tr class="add-row"><td colspan="9"><button class="add-btn" onclick="addLine()">+ Adicionar linha</button> <button class="add-btn sec-btn" onclick="addSection()">+ Secção / Data</button></td></tr></tfoot>
+      <tfoot><tr class="add-row"><td colspan="10"><button class="add-btn" onclick="addLine()">+ Adicionar linha</button> <button class="add-btn sec-btn" onclick="addSection()">+ Secção / Data</button></td></tr></tfoot>
     </table>
     <div id="cat-dropdown" style="display:none;position:fixed;z-index:9999;background:#fff;
       border:1px solid var(--gl);border-radius:3px;box-shadow:0 3px 12px rgba(0,0,0,0.12);
@@ -514,16 +528,18 @@ function addSection(label){
   tr.id = 'S'+id;
   tr.className = 'sec-row';
   tr.innerHTML = `
+    <td class="drag-handle" draggable="false">⠿</td>
     <td colspan="8" style="padding:0">
       <input type="text" value="${label||''}" placeholder="DATA / DESCRIÇÃO DA SECÇÃO" 
         style="width:100%;background:transparent;color:#fff;font-weight:700;font-size:9px;
         letter-spacing:1.5px;text-transform:uppercase;text-align:center;border:none;outline:none;
         padding:5px 8px;font-family:'Montserrat',sans-serif">
     </td>
-    <td style="background:var(--bronze);text-align:center;padding:0 4px">
+    <td style="background:var(--bronze);text-align:center;padding:0 4px;width:22px">
       <button class="sec-del" onclick="delSection(${id})">×</button>
     </td>`;
   tbody.appendChild(tr);
+  initDrag(tr);
   updatePageBreaks();
   // focus input
   tr.querySelector('input').focus();
@@ -533,6 +549,49 @@ function delSection(id){
   const tr = document.getElementById('S'+id);
   if(tr) tr.remove();
   updatePageBreaks();
+}
+
+// ===== DRAG & DROP ROWS =====
+let dragSrc = null;
+
+function initDrag(tr){
+  const handle = tr.querySelector('.drag-handle');
+  if(!handle) return;
+
+  handle.addEventListener('mousedown', () => { tr.draggable = true; });
+  handle.addEventListener('mouseup',   () => { tr.draggable = false; });
+
+  tr.addEventListener('dragstart', e => {
+    dragSrc = tr;
+    tr.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  tr.addEventListener('dragend', () => {
+    tr.draggable = false;
+    tr.classList.remove('dragging');
+    document.querySelectorAll('#lbody tr').forEach(r => r.classList.remove('drag-over'));
+    renum();
+    calcTot();
+    updatePageBreaks();
+  });
+  tr.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('#lbody tr').forEach(r => r.classList.remove('drag-over'));
+    if(tr !== dragSrc) tr.classList.add('drag-over');
+  });
+  tr.addEventListener('drop', e => {
+    e.preventDefault();
+    if(dragSrc && dragSrc !== tr){
+      const tbody = document.getElementById('lbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const srcIdx = rows.indexOf(dragSrc);
+      const tgtIdx = rows.indexOf(tr);
+      if(srcIdx < tgtIdx) tbody.insertBefore(dragSrc, tr.nextSibling);
+      else tbody.insertBefore(dragSrc, tr);
+    }
+    tr.classList.remove('drag-over');
+  });
 }
 
 function autoResize(el){
@@ -552,6 +611,7 @@ function addLine(d){
   const unitVal = d.unit ? fmtInput(+d.unit) : '';
   const discVal = d.disc ? fmtInput(+d.disc) : '';
   tr.innerHTML=`
+    <td class="drag-handle" draggable="false">⠿</td>
     <td class="n tc">${n}</td>
     <td class="ds" style="position:relative"><textarea class="ta" placeholder="Descrição do serviço" oninput="autoResize(this);calcTot();showCatalog(this)" onfocus="showCatalog(this)" onblur="hideCatalog()" rows="1">${d.desc}</textarea></td>
     <td class="qt"><input type="text" class="tc" value="${qtyVal}" placeholder="1" oninput="fmtField(this)" onblur="fmtBlur(this,true)" data-raw="${+d.qty||1}"></td>
@@ -562,6 +622,7 @@ function addLine(d){
     <td class="to tr" id="lt${id}">0,00</td>
     <td class="dl"><button class="del-btn" onclick="delLine(${id})">×</button></td>`;
   tbody.appendChild(tr);
+  initDrag(tr);
   calcTot();
   updatePageBreaks();
 }
@@ -972,7 +1033,7 @@ function updatePageBreaks(){
     if(used + h > a4px && i > 0){
       const markerTr = document.createElement('tr');
       markerTr.className = 'pbm-row';
-      markerTr.innerHTML = '<td colspan="9"><div class="pbm-line"></div></td>';
+      markerTr.innerHTML = '<td colspan="10"><div class="pbm-line"></div></td>';
       tr.parentNode.insertBefore(markerTr, tr);
       used = h;
     } else {
