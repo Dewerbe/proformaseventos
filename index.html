@@ -82,7 +82,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
 .cli-grid>:nth-last-child(-n+2){border-bottom:none}
 
 /* LINES TABLE */
-.lines-wrap{margin:0 22px;position:relative}
+.lines-wrap{margin:0 22px}
 .lt{width:100%;border-collapse:collapse;font-size:10px}
 .lt th{background:var(--black);color:#fff;padding:6px 5px;text-align:center;
   font-size:8px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
@@ -353,7 +353,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--gbg);color:var(--black
       <tbody id="lbody"></tbody>
       <tfoot><tr class="add-row"><td colspan="9"><button class="add-btn" onclick="addLine()">+ Adicionar linha</button> <button class="add-btn sec-btn" onclick="addSection()">+ Secção / Data</button></td></tr></tfoot>
     </table>
-    <div id="cat-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;
+    <div id="cat-dropdown" style="display:none;position:fixed;z-index:9999;background:#fff;
       border:1px solid var(--gl);border-radius:3px;box-shadow:0 3px 12px rgba(0,0,0,0.12);
       max-height:200px;overflow-y:auto;font-size:9px;width:320px">
     </div>
@@ -847,13 +847,26 @@ function showCatalog(ta){
   const dd = document.getElementById('cat-dropdown');
   if(!matches.length){ dd.style.display='none'; return; }
 
-  // Position dropdown relative to lines-wrap container
-  const wrap = document.querySelector('.lines-wrap');
-  const wrapRect = wrap.getBoundingClientRect();
+  // Correct for CSS zoom applied to body
+  const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
   const taRect = ta.getBoundingClientRect();
-  dd.style.top  = (taRect.bottom - wrapRect.top + wrap.scrollTop + 2) + 'px';
-  dd.style.left = (taRect.left - wrapRect.left) + 'px';
+  // Convert from zoomed viewport coords to CSS fixed coords
+  const top    = taRect.bottom / zoom;
+  const left   = taRect.left   / zoom;
+  const topUp  = taRect.top    / zoom;
+  const ddHeight = 200;
+  const viewH  = window.innerHeight / zoom;
+
   dd.style.width = '320px';
+  dd.style.left  = left + 'px';
+
+  if(viewH - top < ddHeight + 10){
+    dd.style.top    = '';
+    dd.style.bottom = (viewH - topUp + 2) + 'px';
+  } else {
+    dd.style.bottom = '';
+    dd.style.top    = (top + 2) + 'px';
+  }
 
   let html = '';
   // Group by category when not filtering
