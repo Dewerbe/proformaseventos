@@ -311,7 +311,7 @@ tr.dragging{opacity:0.4}
     📂 Abrir
     <input type="file" id="fopen" accept=".json" style="display:none" onchange="loadJSON(event)">
   </label>
-  <button class="tb-btn save" onclick="saveJSON()">💾 Guardar</button>
+  <button class="tb-btn save" onclick="confirmSave()">💾 Guardar</button>
   <button class="tb-btn pdf" onclick="validateAndPrint()">🖨 PDF</button>
 </div>
 
@@ -757,12 +757,77 @@ function getData(){
     mor:document.getElementById('f-mor').value,cambio:document.getElementById('f-cambio').value,lines};
 }
 
-function saveJSON(){
+function confirmSave(){
+  const d = getData();
+  const rsv    = d.rsv.trim()    || 'SRSV';
+  const ent    = d.ent.trim()    || 'SEM-ENTIDADE';
+  const data   = d.data          || '';
+
+  // Build suggested filename
+  const entClean = ent.replace(/[^a-zA-Z0-9À-ÿ\s]/g,'').trim().replace(/\s+/g,'_').toUpperCase();
+  const dateClean = data ? data.split('-').reverse().join('') : '';
+  const suggested = `RSV${rsv}_${entClean}_${dateClean}`;
+
+  // Remove existing modal
+  const ex = document.getElementById('save-modal');
+  if(ex) ex.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'save-modal';
+  modal.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.5);z-index:9999;
+    display:flex;align-items:center;justify-content:center`;
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:4px;padding:28px 32px;max-width:420px;width:92%;
+      box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:'Montserrat',sans-serif">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+        color:var(--bronze);margin-bottom:16px">Guardar Proforma</div>
+      <div style="font-size:10px;color:#666;margin-bottom:8px">Nome do ficheiro:</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:20px">
+        <input id="save-filename" type="text" value="${suggested}"
+          style="flex:1;border:1px solid var(--gl);border-radius:3px;padding:8px 10px;
+          font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;color:#231F20;outline:none">
+        <span style="font-size:10px;color:#aaa">.json</span>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="document.getElementById('save-modal').remove()"
+          style="background:none;border:1px solid #ddd;border-radius:3px;padding:7px 16px;
+          font-family:'Montserrat',sans-serif;font-size:10px;color:#888;cursor:pointer">
+          Cancelar
+        </button>
+        <button onclick="doSave()"
+          style="background:#231F20;color:#fff;border:none;border-radius:3px;padding:7px 18px;
+          font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;
+          letter-spacing:.5px;cursor:pointer;text-transform:uppercase">
+          💾 Guardar
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+
+  // Select filename text for easy editing
+  setTimeout(() => {
+    const inp = document.getElementById('save-filename');
+    if(inp){ inp.focus(); inp.select(); }
+  }, 50);
+}
+
+function doSave(){
+  const filename = (document.getElementById('save-filename').value.trim() || 'proforma')
+    .replace(/\.json$/i,'');
+  document.getElementById('save-modal').remove();
+  saveJSON(filename);
+}
+
+function saveJSON(filename){
   const d=getData();
-  const rsv=(d.rsv||'proforma').replace(/\//g,'_');
+  const name=(filename||d.rsv||'proforma').replace(/\//g,'_');
   const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`PRP-${rsv}.json`;a.click();
+  a.download=name+'.json';a.click();
   toast('Ficheiro guardado com sucesso.');
 }
 
